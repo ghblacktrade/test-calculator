@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as readline from 'readline';
-import { CalculatorService } from './calculator/calculator.service';
+import { ExpressionParserService } from "./calculator/expressionParser.service";
 
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
-  const calculatorService = app.get(CalculatorService);
+  const expressionParserService = app.get(ExpressionParserService);
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -13,10 +13,15 @@ async function bootstrap() {
   });
 
   rl.question('Введите выражение: ', (expression) => {
-    const result = calculatorService.calculate(expression);
-    console.log(`Результат: ${result}`);
-    rl.close();
-    app.close();
+    try {
+      const result = expressionParserService.calculate(expression);
+      console.log(`Результат: ${result}`);
+    } catch (error) {
+      console.error(`Ошибка: ${error.message}`);
+    } finally {
+      rl.close();
+      app.close();
+    }
   });
 }
 

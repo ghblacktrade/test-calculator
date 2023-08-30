@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { RegistrationOperator } from "./registrationOperator.service";
 
 @Injectable()
 export class ExpressionParserService {
-  private operators = {
-    '+': { precedence: 1, fn: (a: number, b: number) => a + b },
-    '-': { precedence: 1, fn: (a: number, b: number) => a - b },
-    '*': { precedence: 2, fn: (a: number, b: number) => a * b },
-    '/': { precedence: 2, fn: (a: number, b: number) => a / b },
-  };
+  constructor(private registrationOperator: RegistrationOperator) {
+    this.registrationOperator.addOperation('+', { priority: 1, fn: (a, b) => a + b });
+    this.registrationOperator.addOperation('-', { priority: 1, fn: (a, b) => a - b });
+    this.registrationOperator.addOperation('*', { priority: 2, fn: (a, b) => a * b });
+    this.registrationOperator.addOperation('/', { priority: 2, fn: (a, b) => a / b });
+  }
 
   calculate(expression: string): number {
     const tokens = this.tokenize(expression);
@@ -16,24 +17,31 @@ export class ExpressionParserService {
     return result;
   }
 
-  private tokenize(expression: string): string[] {
-    return expression
-      .match(/(?:\d+\.\d+|\d+|\+|\-|\*|\/|\(|\))/g)
-      .filter((token) => token.trim() !== '');
+  tokenize(expression: string): string[] {
+    const tokens = expression
+        .match(/(?:\d+\.\d+|\d+|\+|\-|\*|\/|\(|\))/g);
+
+    if (!tokens || tokens.length === 0) {
+      throw new Error('Invalid number');
+    }
+
+    return tokens.filter((token) => token.trim() !== '');
   }
 
-  private convertToPostfix(tokens: string[]): string[] {
+  convertToPostfix(tokens: string[]): string[] {
     const outputQueue: string[] = [];
     const operatorStack: string[] = [];
 
     tokens.forEach((token) => {
-      if (this.operators[token]) {
+      const tokenOperator = this.registrationOperator.getOperation(token);
+      if (tokenOperator) {
         while (
-          operatorStack.length &&
-          operatorStack[operatorStack.length - 1] !== '(' &&
-          this.operators[operatorStack[operatorStack.length - 1]].precedence >=
-            this.operators[token].precedence
-        ) {
+            operatorStack.length &&
+            operatorStack[operatorStack.length - 1] !== '(' &&
+            this.registrationOperator.getOperation(operatorStack[operatorStack.length - 1]) &&
+            this.registrationOperator.getOperation(operatorStack[operatorStack.length - 1]).priority >=
+            tokenOperator.priority
+            ) {
           outputQueue.push(operatorStack.pop());
         }
         operatorStack.push(token);
@@ -41,9 +49,9 @@ export class ExpressionParserService {
         operatorStack.push(token);
       } else if (token === ')') {
         while (
-          operatorStack.length &&
-          operatorStack[operatorStack.length - 1] !== '('
-        ) {
+            operatorStack.length &&
+            operatorStack[operatorStack.length - 1] !== '('
+            ) {
           outputQueue.push(operatorStack.pop());
         }
         operatorStack.pop();
@@ -52,6 +60,7 @@ export class ExpressionParserService {
       }
     });
 
+
     while (operatorStack.length) {
       outputQueue.push(operatorStack.pop());
     }
@@ -59,14 +68,20 @@ export class ExpressionParserService {
     return outputQueue;
   }
 
-  private evaluatePostfix(postfix: string[]): number {
+  evaluatePostfix(postfix: string[]): number {
     const stack: number[] = [];
 
     postfix.forEach((token) => {
-      if (this.operators[token]) {
+      const operator = this.registrationOperator.getOperation(token);
+      if (operator) {
         const b = stack.pop();
         const a = stack.pop();
-        stack.push(this.operators[token].fn(a, b));
+
+        if (token === '/' && b === 0) {
+          throw new Error('Err: Division zero');
+        }
+
+        stack.push(operator.fn(a, b));
       } else {
         stack.push(parseFloat(token));
       }
