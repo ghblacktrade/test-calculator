@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CalculatorService } from './calculator/calculator.service';
 import { ExpressionParserService } from './calculator/expressionParser.service';
+import { RegistrationOperator } from "./calculator/registrationOperator.service";
 
 @Module({
-  providers: [CalculatorService, ExpressionParserService],
+  providers: [ExpressionParserService, RegistrationOperator],
 })
 export class AppModule {}
